@@ -1,0 +1,76 @@
+Loading Databases
+```{r}
+Champions <- read.csv("champions_stats.csv")
+Matchs <- read.csv("matchs_stats.csv")
+Player <- read.csv("players_stats.csv")
+```
+Exploratory analisis
+```{r}
+# O campeao mais jogado de cada mundial
+library(tidyverse)
+Frequency_champions <- Champions %>%
+  group_by(season, event) %>%
+  summarise(
+    games = max(games_contests)
+  ) %>%
+  ungroup() %>%
+  left_join(Champions, by = c("season", "event", "games" = "games_contests"))%>%
+  filter(event == "Main")%>%
+  arrange(-games)
+head(Frequency_champions,12)
+
+# Os campeoes mais disputados no utimo ano
+LastYear_champions <- Champions %>%
+  filter(season == 12 & event == "Main" ) %>%
+  arrange(-pick_ban_ratio)
+head(LastYear_champions)
+
+# Os com maior taxa de vitória
+LastYear_winrate <- LastYear_champions %>%
+  arrange(-win_rate)
+head(LastYear_winrate)
+
+
+# conseguimos saber qual time mais ganhou
+Winners <- Matchs %>%
+  group_by(winner,event) %>%
+  summarise(
+    games = n()
+  )%>%
+  arrange(-games)
+
+# qual time mais ganhou em cada temporada
+Season_Winners <- Matchs %>%
+  group_by(season,winner,event) %>%
+  summarise(
+    games = n()
+  )%>%
+  arrange(season,-games)
+
+# não tinha na base de dados os respectivos ganhadores de cada mundial.
+# 2011	 Fnatic	2–1	 against All authority	Elmia	Jönköping, Suécia
+# 2012	 Taipei Assassins	3–1	 Azubu Frost	Galen Center	Los Angeles, Estados Unidos
+# 2013	 SK Telecom T1	3–0	 Royal Club	Staples Center	Los Angeles, Estados Unidos
+# 2014	 Samsung White	3–1	 Star Horn Royal Club	Seoul World Cup Stadium	Seul, Coreia do Sul
+# 2015	 SK Telecom T1	3–1	 KOO Tigers	Mercedes-Benz Arena	Berlim, Alemanha
+# 2016	 SK Telecom T1	3–2	 Samsung Galaxy	Staples Center	Los Angeles, Estados Unidos
+# 2017	 Samsung Galaxy	3–0	 SK Telecom T1	Beijing National Stadium	Pequim, China
+# 2018	 Invictus Gaming	3–0	 Fnatic	Incheon Munhak Stadium	Incheon, Coreia do Sul
+# 2019	 FunPlus Phoenix	3–0	 G2 Esports	AccorHotels Arena	Paris, França
+# 2020	 Damwon Gaming	3–1	 Suning	Pudong Football Stadium	Xangai, China
+# 2021	 Edward Gaming	3–2	 DWG KIA	Laugardalshöll	Reiquiavique, Islândia
+# 2022	 DRX 3–2	Coreia do Sul T1	Chase Center	São Francisco, Estados Unidos
+
+ScoreBoard <- Matchs %>%
+  group_by(blue_team,red_team) %>%
+  summarise(
+    blue_win = sum(winner == blue_team),
+    red_win = sum(winner == red_team)
+  )# queria fazer um melhor
+
+
+
+
+str(Player)
+```
+
