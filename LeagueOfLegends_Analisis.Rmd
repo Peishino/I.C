@@ -1,10 +1,98 @@
-Loading Databases
+Loading/Creating Databases
 ```{r}
+{
 Champions <- read.csv("champions_stats.csv")
 Matchs <- read.csv("matchs_stats.csv")
 Player <- read.csv("players_stats.csv")
+}
+{
+Current_Players <- data.frame("LPL","JD_Gaming","365","Kanavi","Knight","Ruler","Missing")
+Current_Players[2,] <- c("LPL","Bilibili_Gaming","Bin","Xun","Yagao","Elk","ON")
+Current_Players[3,] <- c("LPL","LNG_Esports","Zika","Tarzan","Scout","Gala","Hang")
+Current_Players[4,] <- c("LPL","WB_Gaming","TheShy","Weiwei","Xiaohu","Light","Crisp")
+Current_Players[5,] <- c("LCK","Gen_g","Doran","Peanut","Chovy","Peyz","Delight")
+Current_Players[6,] <- c("LCK","T1","Zeus","Oner","Faker","Gumayusi","Keria") #They were previously known as sktt1.
+Current_Players[7,] <- c("LCK","KT_Rolster","Kiin","Cuzz","Bdd","Aiming","Lehends")
+Current_Players[8,] <- c("LCK","Dplus_KIA","Canna","Canyon","ShowMaker","Deft","Kellin") #They were previously known as DAMWON Gaming and DWG KIA.
+Current_Players[9,] <- c("LEC","G2_Esports","BrokenBlade","Yike","Caps","Hans Sama","Mikyx") 
+Current_Players[10,] <- c("LEC","Fnatic","Oscarinin","Razork","Humanoid","Noah","Trymbi")
+Current_Players[11,] <- c("LEC","MAD_Lions","Chasy","Elyoya","Nisqy","Carzzy","Hylissang") 
+Current_Players[12,] <- c("LEC","BDS","Adam","Sheo","Nuc","Crownie","Labrov") 
+Current_Players[13,] <- c("LCS","NRG","Dhokla","Contractz","Palafox","FBI","Ignar")
+Current_Players[14,] <- c("LCS","Cloud9","Fudgr","Blaber","EMENES","Berserker","Zven")
+Current_Players[15,] <- c("LCS","Team_Liquid","Summit","Pyosik","APA","Yeon","CoreJJ") 
+Current_Players[16,] <- c("LCS","Golden_Guardians","Licorice","River","Gori","Sitxxay","Huhi")
+Current_Players[17,] <- c("PCS","PSG_Talon","Azhi","Junjia","Maple","Wako","Woody")
+Current_Players[18,] <- c("PCS","CTBC_Flying_Oyster","Rest","Gemini","JimieN","Shunn","ShiauC") 
+Current_Players[19,] <- c("VCS","GAM_Esports","Kiaya","Levi","Kati","Slayder","Palette")
+Current_Players[20,] <- c("VCS","Whales","Sparda","BeanJ","Glory","Artemis","Bie")
+Current_Players[19,] <- c("CBLOL","LOUD","Robo","Croc","Tinowns","Route","Ceos")
+Current_Players[20,] <- c("LJL","DetonatioN_FocusMe","Yutapon","Steal","Aria","Milan","Harp")
+Current_Players[21,] <- c("LLA","Movistar_R7","Bong","Oddie","Mireu","Ceo","Lyonz")
+colnames(Current_Players)<- c("Region","Team","Top","Jungle","Mid","Adc","Supporte")
+}
+
 ```
+
 Exploratory analisis
+```{r}
+str(Champions)
+table(Champions$season)
+# Season 1:12, as season começaram em 2011 juntamente com os torneios
+table(Champions$event)
+# Play in são jogos classificatórios, main é o "real" torneio
+table(Champions$champion)
+# não aparenta ter nenhum nome escrito de formas diferentes
+# games_contest é a coluna que informa o número de jogos que aquele personagem foi banido/usado em jogo
+# Todas as outras colunas são bem intuitivas e não apresentam nenhum erro
+# existem alguns valores NA nas ultimas colunas...
+str(Matchs)
+# patch são atualizações mensais que fazem no jogo.
+# os primeiros elementos da coluna patch, tem valores NA pois antigamente não faziam essas atualizações no jogo.
+table(Matchs$blue_team)
+# é importante ter atenção no nome dos times pois alguns trocaram de nome, mas represantam a mesma coisa;
+# ex: SK_Telecom_T1 == T1, DWG_KIA == Dplus_KIA,  Gen_g == Gen_2e-G == KSV eSports e etc...
+# uma maneira possível de descobrir os times com nomes diferentes seria comparar com os times que estão competindo atualmente para ver se tem algum nome diferente
+# a maioria dos jogadores afirmam que no time azul existe a maior taxa de vitória, seria legal analisar isso.
+# o resto é lista dos personagens e players que jogaram.
+str(Player)
+# mesma ideia do tratamento de times
+table(Player$player) # fazer verificação de nomes com os nomes em cenário atual
+Player$teste <- ifelse(Player$wins + Player$loses ==Player$games_played,0,1) # teste para verificar se tinha alguma quantidade errada de jogos/vitorias/derrotas.
+# essas outras colunas de desempenho do jogador podem servir para criarmos uma métrica de avaliação para os jogadores.
+
+
+
+```
+Treating data
+```{r}
+sum(Matchs[,5:7] == "SK_Telecom_T1")
+{
+Matchs$blue_team <- ifelse(Matchs$blue_team == "SK_Telecom_T1","T1",Matchs$blue_team)
+Matchs$red_team <- ifelse(Matchs$red_team == "SK_Telecom_T1","T1",Matchs$red_team)
+Matchs$winner <- ifelse(Matchs$winner == "SK_Telecom_T1","T1",Matchs$winner)}
+
+sum(Matchs[,5:7] == "Gen_2e-G")
+{
+Matchs$blue_team <- ifelse(Matchs$blue_team == "Gen_2e-G","Gen_g",Matchs$blue_team)
+Matchs$red_team <- ifelse(Matchs$red_team == "Gen_2e-G","Gen_g",Matchs$red_team)
+Matchs$winner <- ifelse(Matchs$winner == "Gen_2e-G","Gen_g",Matchs$winner)}
+
+sum(Matchs[,5:7] == "DWG_KIA")
+{
+Matchs$blue_team <- ifelse(Matchs$blue_team == "DWG_KIA","Dplus_KIA",Matchs$blue_team)
+Matchs$red_team <- ifelse(Matchs$red_team == "DWG_KIA","Dplus_KIA",Matchs$red_team)
+Matchs$winner <- ifelse(Matchs$winner == "DWG_KIA","Dplus_KIA",Matchs$winner)}
+{
+Player$team <- ifelse(Player$team == "SK_Telecom_T1","T1",Player$team)
+Player$team <- ifelse(Player$team == "Gen_2e-G","Gen_g",Player$team)
+Player$team <- ifelse(Player$team == "DWG_KIA","Dplus_KIA",Player$team)
+}
+```
+
+
+Manipulating data
+
 ```{r}
 # O campeao mais jogado de cada mundial
 library(tidyverse)
@@ -15,8 +103,7 @@ Frequency_champions <- Champions %>%
   ) %>%
   ungroup() %>%
   left_join(Champions, by = c("season", "event", "games" = "games_contests"))%>%
-  filter(event == "Main")%>%
-  arrange(-games)
+  filter(event == "Main")
 head(Frequency_champions,12)
 
 # Os campeoes mais disputados no utimo ano
@@ -29,7 +116,6 @@ head(LastYear_champions)
 LastYear_winrate <- LastYear_champions %>%
   arrange(-win_rate)
 head(LastYear_winrate)
-
 
 # conseguimos saber qual time mais ganhou
 Winners <- Matchs %>%
@@ -68,9 +154,11 @@ ScoreBoard <- Matchs %>%
     red_win = sum(winner == red_team)
   )# queria fazer um melhor
 
+# comparação dos lados azul e vermelho
+sum(ScoreBoard$blue_win)
+sum(ScoreBoard$red_win)
+Percent_blue <- sum(ScoreBoard$blue_win)/(sum(ScoreBoard$blue_win)+sum(ScoreBoard$red_win))
 
 
-
-str(Player)
 ```
 
