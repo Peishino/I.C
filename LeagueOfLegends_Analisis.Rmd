@@ -94,17 +94,31 @@ Player$team <- ifelse(Player$team == "DWG_KIA","Dplus_KIA",Player$team)
 Manipulating data
 
 ```{r}
-# O campeao mais jogado de cada mundial
+# O campeao mais jogado em cada rota de cada mundial
+rotas <- c(Matchs$pick_1_red_team, Matchs$pick_1_blue_team, Matchs$pick_2_red_team, Matchs$pick_2_blue_team,
+           Matchs$pick_3_red_team, Matchs$pick_3_blue_team, Matchs$pick_4_red_team, Matchs$pick_4_blue_team,
+           Matchs$pick_5_red_team, Matchs$pick_5_blue_team)
+
+nomes_rotas <- c(rep("top", nrow(Matchs) * 2), rep("jg", nrow(Matchs) * 2),
+                 rep("mid", nrow(Matchs) * 2), rep("adc", nrow(Matchs) * 2),
+                 rep("sup", nrow(Matchs) * 2))
+
+df_rotas <- data.frame(season = rep(Matchs$season, 10), rota = nomes_rotas, personagem = rotas)
+
+
+
 library(tidyverse)
-Frequency_champions <- Champions %>%
-  group_by(season, event) %>%
+
+Most_Played_Champions <- df_rotas %>%
+  group_by(season,rota) %>%
   summarise(
-    games = max(games_contests)
+    personagem = names(which.max(table(personagem))),
   ) %>%
   ungroup() %>%
-  left_join(Champions, by = c("season", "event", "games" = "games_contests"))%>%
-  filter(event == "Main")
-head(Frequency_champions,12)
+  spread(rota, personagem) %>%
+  select(season, top, jg, mid, adc, sup)
+  
+
 
 # Os campeoes mais disputados no utimo ano
 LastYear_champions <- Champions %>%
@@ -155,6 +169,7 @@ ScoreBoard <- Matchs %>%
   )# queria fazer um melhor
 
 # comparação dos lados azul e vermelho
+# fazer testes hipotese
 sum(ScoreBoard$blue_win)
 sum(ScoreBoard$red_win)
 Percent_blue <- sum(ScoreBoard$blue_win)/(sum(ScoreBoard$blue_win)+sum(ScoreBoard$red_win))
