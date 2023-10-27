@@ -1,279 +1,144 @@
 library(shiny)
 library(shinydashboard)
 library(ggplot2)
-library(DT)
 
-calculatePlayerAverages <- function(player_data) {
-  kills_avg <- mean(player_data$kills)
-  deaths_avg <- mean(player_data$deaths)
-  assists_avg <- mean(player_data$assists)
-  creep_score_avg <- mean(player_data$creep_score)
-  damage_avg <- mean(player_data$damage)
-  kill_participation_avg <- mean(player_data$kill_participation)
-  
-  return(c(kills_avg, deaths_avg, assists_avg, creep_score_avg, damage_avg, kill_participation_avg))
-}
-ui <- fluidPage(
-    theme = bslib::bs_theme(bootswatch = "darkly"),
-
-    div(
-      class = "container",
-      h1("League of Legends Worlds", class = "text-center")
-    ),
-
-    fluidPage(
-        fluidRow(
-          column(6,
-                 plotOutput("Teams_plot")
-          ),
-          column(6,
-                 selectInput("Player_filter","Jogador",choices = NULL,multiple = TRUE),
-                 plotOutput("Comparative_plot")
-          )
-        ),
-        fluidRow(
-          column(6,
-                 fluidRow(
-                   column(6,
-                          selectInput("Season_filter","Temporada",choices = NULL)
-                          ),
-                   column(6,
-                          selectInput("Team_filter","Time",choices = NULL)
-                          )
-                   ),
-                 dataTableOutput("Table_team")
-          ),
-          column(6,
-                 box(title = "Estatísticas do jogador",width = 12,
-                     fluidRow(
-                       column(4,
-                              valueBoxOutput("Kill")),
-                       column(4,
-                              valueBoxOutput("Death")
-                              ),
-                       column(4,
-                              valueBoxOutput("Assistance")
-                       )
-                     ),
-                    fluidRow(
-                      column(4,
-                             valueBoxOutput("Creep_score")
-                             ),
-                      column(4,
-                             valueBoxOutput("Damage")
-                      ),
-                      column(4,
-                             valueBoxOutput("Kill_participation")
+ui <- dashboardPage(skin = "black",
+                    dashboardHeader(title = "League of legends worlds"),
+                    dashboardSidebar(
+                      selectInput("Player", "Selecione o jogador", choices =  NULL),
+                      selectInput("Season", "Filtrar por temporada", choices = NULL),
+                      plotOutput("WinRate")
+                    ),
+                    dashboardBody(
+                      fluidRow(
+                        box(width = 12, status = "warning", solidHeader = TRUE,
+                            title = "Desempenho do jogador por partida",
+                            infoBoxOutput("Team", width = 3),
+                            infoBoxOutput("KDA", width = 3),
+                            infoBoxOutput("CreepScore", width = 3),
+                            infoBoxOutput("Damage", width = 3)
+                        ),
+                        column(9,
+                               box(width = 12, height = 211, status = "primary", solidHeader = T,
+                                   plotOutput("KDA_Season", height = 190)
+                               ),
+                               box(width = 12, height = 211, status = "success", solidHeader = T,
+                                   plotOutput("Wr_Season", height = 190)
+                               )
+                        ),
+                        column(3,
+                               box(width = 12,height = 444,
+                                   plotOutput("cs_min"),
+                                   plotOutput("ks")
+                                   ),
+                              
+                        )
                       )
-                     )
-                 )
-                
-          )
-            
-        )
-    )
+                    )
 )
 
-
 server <- function(input, output, session) {
+  
+  # lendo a base de dados reativa
   PlayersData <- reactive({
     df <- Player
+    df <- df[df$event == "Main",]
     return(df)
   })
-  WinnersData <- Winners[Winners$event == "Main",]
-  WinnersData <- WinnersData[1:20,]
-  WinnersData$winner <- reorder(WinnersData$winner, -WinnersData$games)
-  colnames(WinnersData) <- c("Times","event","games")
-  purple_to_black_palette <- colorRampPalette(c("orange", "yellow"))
   
+  # criando filtro jogador
   observe({
-    updateSelectInput(session, "Season_filter", choices = unique(PlayersData()$season))
+    updateSelectInput(session, "Player", choices = unique(PlayersData()$player))
   })
   
-  observe({
-    seasonfilter <- input$Season_filter
-    if (!is.null(seasonfilter)) {
-      teams <- unique(PlayersData()$team[PlayersData()$season == seasonfilter])
-      updateSelectInput(session, "Team_filter", choices = teams)
-    }
+  # seleção de filtros
+  observeEvent(input$Player, {
+    base <- PlayersData()
+    base <- base %>% filter(player == input$Player)
+    updateSelectInput(session, "Season", choices = unique(base$season))
+    base <- base %>% filter(season == input$Season)
   })
   
-  
-  output$Teams_plot <- renderPlot({
-    ggplot(WinnersData, aes(x = Times, y = games, fill = Times)) +
-      geom_bar(stat = "identity") +
-      scale_fill_manual(values = purple_to_black_palette(length(unique(WinnersData$Times)))) +
-      theme_minimal() +
-      theme(
-        plot.background = element_rect(fill = "#222222"),
-        panel.background = element_rect(fill = "#222222"),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.text = element_text(size = 16, color = "white"),
-        legend.title = element_text(size = 16, color = "white"),
-        axis.title.y = element_text(size = 20, color = "white"),
-        axis.text.y = element_text(size = 16, color = "white"),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank()
-      )
+  # base filtrada
+  Players_Inputs <- reactive({
+    base <- PlayersData()
+    base <- base %>% filter(player == input$Player)
+    base <- base %>% filter(season == input$Season)
+    return(base)
   })
   
-  
-  filtered_data <- reactive({
-    season_filter <- input$Season_filter
-    team_filter <- input$Team_filter
-    
-    filtered_players <- PlayersData()
-    
-    if (!is.null(season_filter)) {
-      filtered_players <- filtered_players %>% filter(season == season_filter)
-    }
-    
-    if (!is.null(team_filter)) {
-      filtered_players <- filtered_players %>% filter(team %in% team_filter)
-    }
-    
-    return(filtered_players)
-  })
-  
-
-  
-  output$Table_team <- renderDataTable({
-    data <- filtered_data()
-    colunas <- c('season', 'team', 'player', 'games_played', 'win_rate')
-    
-    datatable(
-      data[, colunas, drop = FALSE],
+  # info boxes
+  output$Team <- renderInfoBox({
+    infoBox(
+      fill = TRUE,
+      title = "Time",
+      value = Players_Inputs()$team,
+      icon = icon("headset"),
+      color = "yellow"
     )
   })
   
-  observe ({
-    updateSelectInput(session, "Player_filter", choices = unique(PlayersData()$player))
+  output$KDA <- renderInfoBox({
+    infoBox(
+      fill = TRUE,
+      title = "Média de KDA",
+      value = mean(Players_Inputs()$kill_death_assist_ratio),
+      icon = icon("hand-fist"),
+      color = "yellow"
+    )
+  })
+  
+  output$CreepScore <- renderInfoBox({
+    infoBox(
+      fill = TRUE,
+      title = "Média de Minions",
+      value = mean(Players_Inputs()$creep_score),
+      icon = icon("chess-pawn"),
+      color = "yellow",
+      
+    )
+  })
+  
+  output$Damage <- renderInfoBox({
+    infoBox(
+      fill = TRUE,
+      title = "Média de Dano",
+      value = mean(Players_Inputs()$damage),
+      icon = icon("wand-sparkles"),
+      color = "yellow"
+    )
   })
   
   
-  output$Comparative_plot <- renderPlot({
-    player_filter <- input$Player_filter
-    if (is.null(player_filter)) {
-      return(NULL)
-    }
-    jogadores <- PlayersData()
-    jogadores <- jogadores[jogadores$event == "Main",]
-    jogadores <- jogadores[jogadores$player %in% player_filter, ]
-    # Criar o gráfico de linhas com pontos
-    ggplot(jogadores, aes(x = season, y = win_rate, group = player, color = player)) +
-      geom_line() +
-      geom_point() +
-      labs(title = "Win Rate por Temporada", x = "Temporada", y = "Win Rate") +
-      scale_x_continuous(breaks = 1:12, labels = 1:12)
+  output$KDA_Season <- renderPlot({
+    df <- PlayersData()
+    df_filtered <- df %>% filter(player == input$Player)
+    
+    df_filtered$season <- factor(df_filtered$season, levels = unique(df_filtered$season))
+    
+    ggplot(df_filtered, aes(x = season, y = kill_death_assist_ratio)) +
+      geom_bar(stat = "identity", fill = "lightblue", size = 1) +
+      labs(title = "Média de KDA por Temporada", x = "Temporada", y = "KDA Média") +
+      theme_minimal() 
   })
   
-  output$Kill <- renderValueBox({
-  player_filter <- input$Player_filter
-  if (is.null(player_filter) || length(player_filter) == 0) {
-    return(valueBox("N/A", "Média de Kills", icon = icon("times")))
-  }
-
-  jogadores <- PlayersData()
-  jogadores <- jogadores[jogadores$event == "Main" & jogadores$player %in% player_filter, ]
+  output$Wr_Season <- renderPlot({
+    df <- PlayersData()
+    df_filtered <- df %>% filter(player == input$Player)
+    
+    ggplot(df_filtered, aes(x = season)) +
+      geom_area(aes(y = wins, fill = "Win"), position = "identity", alpha = 0.5) +
+      geom_area(aes(y = loses, fill = "Lose"), position = "identity", alpha = 0.5) +
+      geom_line(aes(y = wins, color = "Win"), size = 1.5) +
+      geom_line(aes(y = loses, color = "Lose"), size = 1.5) +
+      scale_fill_manual(values = c("Win" = "green", "Lose" = "red")) +
+      scale_color_manual(values = c("Win" = "green", "Lose" = "red")) +
+      labs(title = "Vitórias e Derrotas por Temporada", x = "Temporada", y = "Quantidade") +
+      theme_minimal()
+  })
   
-  if (nrow(jogadores) > 0) {
-    avg_kills <- mean(jogadores$kills)
-    return(valueBox(round(avg_kills, 2), "Média de Kills"))
-  } else {
-    return(valueBox("N/A", "Média de Kills", icon = icon("times")))
-  }
-})
-
-# Código para a média de Deaths
-output$Death <- renderValueBox({
-  player_filter <- input$Player_filter
-  if (is.null(player_filter) || length(player_filter) == 0) {
-    return(valueBox("N/A", "Média de Deaths", icon = icon("times")))
-  }
-
-  jogadores <- PlayersData()
-  jogadores <- jogadores[jogadores$event == "Main" & jogadores$player %in% player_filter, ]
   
-  if (nrow(jogadores) > 0) {
-    avg_deaths <- mean(jogadores$deaths)
-    return(valueBox(round(avg_deaths, 2), "Média de Deaths"))
-  } else {
-    return(valueBox("N/A", "Média de Deaths", icon = icon("times")))
-  }
-})
-
-# Código para a média de Assists
-output$Assistance <- renderValueBox({
-  player_filter <- input$Player_filter
-  if (is.null(player_filter) || length(player_filter) == 0) {
-    return(valueBox("N/A", "Média de Assists", icon = icon("times")))
-  }
-
-  jogadores <- PlayersData()
-  jogadores <- jogadores[jogadores$event == "Main" & jogadores$player %in% player_filter, ]
   
-  if (nrow(jogadores) > 0) {
-    avg_assists <- mean(jogadores$assists)
-    return(valueBox(round(avg_assists, 2), "Média de Assists"))
-  } else {
-    return(valueBox("N/A", "Média de Assists", icon = icon("times")))
-  }
-})
-
-# Código para a média de Creep Score
-output$Creep_score <- renderValueBox({
-  player_filter <- input$Player_filter
-  if (is.null(player_filter) || length(player_filter) == 0) {
-    return(valueBox("N/A", "Média de Creep Score", icon = icon("times")))
-  }
-
-  jogadores <- PlayersData()
-  jogadores <- jogadores[jogadores$event == "Main" & jogadores$player %in% player_filter, ]
-  
-  if (nrow(jogadores) > 0) {
-    avg_creep_score <- mean(jogadores$creep_score)
-    return(valueBox(round(avg_creep_score, 2), "Média de Creep Score"))
-  } else {
-    return(valueBox("N/A", "Média de Creep Score", icon = icon("times")))
-  }
-})
-
-# Código para a média de Damage
-output$Damage <- renderValueBox({
-  player_filter <- input$Player_filter
-  if (is.null(player_filter) || length(player_filter) == 0) {
-    return(valueBox("N/A", "Média de Damage", icon = icon("times")))
-  }
-
-  jogadores <- PlayersData()
-  jogadores <- jogadores[jogadores$event == "Main" & jogadores$player %in% player_filter, ]
-  
-  if (nrow(jogadores) > 0) {
-    avg_damage <- mean(jogadores$damage)
-    return(valueBox(round(avg_damage, 2), "Média de Damage"))
-  } else {
-    return(valueBox("N/A", "Média de Damage", icon = icon("times")))
-  }
-})
-
-# Código para a média de Kill Participation
-output$Kill_participation <- renderValueBox({
-  player_filter <- input$Player_filter
-  if (is.null(player_filter) || length(player_filter) == 0) {
-    return(valueBox("N/A", "Média de Kill Participation", icon = icon("times")))
-  }
-
-  jogadores <- PlayersData()
-  jogadores <- jogadores[jogadores$event == "Main" & jogadores$player %in% player_filter, ]
-  
-  if (nrow(jogadores) > 0) {
-    avg_kill_participation <- mean(jogadores$kill_participation)
-    return(valueBox(round(avg_kill_participation, 2), "Média de Kill Participation"))
-  } else {
-    return(valueBox("N/A", "Média de Kill Participation", icon = icon("times")))
-  }
-})
 }
 
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)
