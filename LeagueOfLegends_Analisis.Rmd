@@ -88,6 +88,9 @@ Player$team <- ifelse(Player$team == "SK_Telecom_T1","T1",Player$team)
 Player$team <- ifelse(Player$team == "Gen_2e-G","Gen_g",Player$team)
 Player$team <- ifelse(Player$team == "DWG_KIA","Dplus_KIA",Player$team)
 }
+Champions$banned_games <- ifelse(is.na(Champions$banned_games),0,Champions$banned_games)
+Champions$played_games <- ifelse(is.na(Champions$played_games),0,Champions$played_games)
+Champions$played_by_number_of_players <- ifelse(is.na(Champions$played_by_number_of_players),0,Champions$played_by_number_of_players)
 ```
 
 
