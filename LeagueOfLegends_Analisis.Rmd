@@ -178,5 +178,8 @@ sum(ScoreBoard$red_win)
 Percent_blue <- sum(ScoreBoard$blue_win)/(sum(ScoreBoard$blue_win)+sum(ScoreBoard$red_win))
 
 
+ChampsRotas <- data.frame(Champs = unique(Champions$champion))
+ChampsRotas$Rota <- c("jg","sup","top","mid","mid","mid","jg","adc","sup","adc","jg","sup","jg","mid","jg","mid","sup","mid","jg","mid","adc","sup","jg","jg","top","sup","mid","top","top","adc","top","adc","top","top","jg","top","top","top","sup","top","top","mid","mid","top","jg","top","adc","top","top","mid","top","jg","adc","jg","top","top","jg","sup","top","sup","jg","top","mid","jg","sup","sup","mid","mid","mid","adc","jg","top","mid","adc","top","adc","mid","jg","sup","top","mid","top","jg","jg","adc","top", "mid","jg","top","sup","mid","top","top","mid","top","jg","sup","mid","jg","adc","jg","mid","sup","adc","mid","mid","top","top","jg","adc","mid","sup","top","top","mid","mid","mid","sup","sup","adc","mid","jg","top","jg","sup","adc","mid","top","jg","jg","adc","top","mid","mid","sup","mid","mid","sup","mid","top","mid","jg","top","sup","jg","adc","top","mid","sup","top","sup","jg","mid","jg","sup","adc","adc")
+Champions$lane <- ifelse(Champions$champion %in% ChampsRotas$Champs, ChampsRotas$Rota[match(Champions$champion, ChampsRotas$Champs)], NA)
 ```
 
