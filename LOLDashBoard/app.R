@@ -273,8 +273,8 @@ server <- function(input, output, session) {
       plot_ly(top10_champions, x = ~champion, y = ~wins, type = 'bar', name = 'Wins', marker = list(color = '#1a53ff')) %>%
         add_trace(y = ~loses, name = 'Loses', marker = list(color = '#668cff')) %>%
         layout(title = "Número de vitórias e derrotas do personagem",
-               xaxis = list(title = "Champion"),
-               yaxis = list(title = "Number of Games"),
+               xaxis = list(title = "Personagem"),
+               yaxis = list(title = "Número de jogos"),
                barmode = 'stack'
         )
     })
@@ -285,8 +285,8 @@ server <- function(input, output, session) {
       
       plot_ly(top10_champions, x = ~champion, y = ~numberofp, type = 'bar', name = 'Number of Players', marker = list(color = '#00264d')) %>%
         layout(title = "Número de jogadores que utilizaram o personagem",
-               xaxis = list(title = "Champion"),
-               yaxis = list(title = "Number of Players"),
+               xaxis = list(title = "Personagem"),
+               yaxis = list(title = "Número de jogadores"),
                barmode = 'group'
         )
     })
