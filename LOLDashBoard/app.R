@@ -270,8 +270,8 @@ server <- function(input, output, session) {
     output$WinLose <- renderPlotly({
       df <- Champions_filtered()
       top10_champions <- head(df, 10)
-      plot_ly(top10_champions, x = ~champion, y = ~wins, type = 'bar', name = 'Wins', marker = list(color = '#1a53ff')) %>%
-        add_trace(y = ~loses, name = 'Loses', marker = list(color = '#668cff')) %>%
+      plot_ly(top10_champions, x = ~champion, y = ~wins, type = 'bar', name = 'Vitórias', marker = list(color = '#1a53ff')) %>%
+        add_trace(y = ~loses, name = 'Derrotas', marker = list(color = '#668cff')) %>%
         layout(title = "Número de vitórias e derrotas do personagem",
                xaxis = list(title = "Personagem"),
                yaxis = list(title = "Número de jogos"),
