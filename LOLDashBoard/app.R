@@ -1,7 +1,11 @@
 library(shiny)
 library(shinydashboard)
 library(plotly)
-library(ggplot2)
+library(tidyverse)
+
+load("Matchs.RData")
+load("Champions.RData")
+load("Player.RData")
 
 ui <- dashboardPage(
   skin = "black",
@@ -80,7 +84,28 @@ ui <- dashboardPage(
       tabItem(
         tabName = "dashboard3",
         fluidRow(
-          
+          box(width = 12,status = "danger" ,solidHeader = T,
+              column(6,
+                     selectInput("SeasonMatch", "Filtrar por temporada", choices = NULL)
+              ),
+              column(6,
+                     selectInput("Combinacao", "Filtrar por combinação de rotas", choices = c("ADC & SUP","MID & JG","TOP & JG","MID & TOP","ADC, SUP & JG","ADC, SUP & MID","MID, TOP & JG", "Composição"))
+              )
+          ),
+          box(width = 12, status = "danger", solidHeader = T,
+              plotlyOutput("WinnerWinrate")
+          ),
+          column(6,
+                 box(width = 12, status = "danger", solidHeader = T,
+                     plotlyOutput("RedBlue")
+                 )
+                 
+          ),
+          column(6,
+                 box(width = 12, status = "danger", solidHeader = T,
+                     plotlyOutput("Combinacoes")
+                 )
+          )
         )
       )
     )
@@ -102,12 +127,20 @@ server <- function(input, output, session) {
       df <- df[df$event == "Main", ]
       return(df)
     })
+    
+    MatchsData <- reactive({
+      df<- Matchs
+      df<- df[df$event == "Main",]
+      return(df)
+    })
+    
   }
+  
   
   # inputs Players
   {
     observe({
-      updateSelectInput(session, "Player", choices = unique(PlayersData()$player))
+      updateSelectInput(session, "Player", choices = unique(PlayersData()$player),selected = "Faker")
     })
     
     # seleção de filtros
@@ -169,7 +202,87 @@ server <- function(input, output, session) {
     })
   }
   
-
+  # inputs Matchs
+  {
+    Matchs_filtered <- reactive({
+      base <- MatchsData()
+      df <- if (input$SeasonMatch == "Todas") base else base %>% filter(season == input$SeasonMatch)
+      
+      df <- df %>%
+        mutate(
+          combinacoesAzul = case_when(
+            input$Combinacao == "ADC & SUP" ~ paste(pick_4_blue_team, pick_5_blue_team, sep = " & "),
+            input$Combinacao == "MID & JG" ~ paste(pick_3_blue_team, pick_2_blue_team, sep = " & "),
+            input$Combinacao == "TOP & JG" ~ paste(pick_1_blue_team, pick_2_blue_team, sep = " & "),
+            input$Combinacao == "MID & TOP" ~ paste(pick_3_blue_team, pick_2_blue_team, sep = " & "),
+            input$Combinacao == "ADC, SUP & JG" ~ paste(pick_4_blue_team, pick_5_blue_team, pick_2_blue_team, sep = " & "),
+            input$Combinacao == "ADC, SUP & MID" ~ paste(pick_4_blue_team, pick_5_blue_team, pick_3_blue_team, sep = " & "),
+            input$Combinacao == "MID, TOP & JG" ~ paste(pick_3_blue_team, pick_1_blue_team, pick_2_blue_team, sep = " & "),
+            input$Combinacao == "Composição" ~ paste(pick_4_blue_team, pick_5_blue_team, pick_3_blue_team, pick_2_blue_team, pick_1_blue_team, sep = " & ")
+          ),
+          combinacoesVermelho = case_when(
+            input$Combinacao == "ADC & SUP" ~ paste(pick_4_red_team, pick_5_red_team, sep = " & "),
+            input$Combinacao == "MID & JG" ~ paste(pick_3_red_team, pick_2_red_team, sep = " & "),
+            input$Combinacao == "TOP & JG" ~ paste(pick_1_red_team, pick_2_red_team, sep = " & "),
+            input$Combinacao == "MID & TOP" ~ paste(pick_3_red_team, pick_2_red_team, sep = " & "),
+            input$Combinacao == "ADC, SUP & JG" ~ paste(pick_4_red_team, pick_5_red_team, pick_2_red_team, sep = " & "),
+            input$Combinacao == "ADC, SUP & MID" ~ paste(pick_4_red_team, pick_5_red_team, pick_3_red_team, sep = " & "),
+            input$Combinacao == "MID, TOP & JG" ~ paste(pick_3_red_team, pick_1_red_team, pick_2_red_team, sep = " & "),
+            input$Combinacao == "Composição" ~ paste(pick_4_red_team, pick_5_red_team, pick_3_red_team, pick_2_red_team, pick_1_red_team, sep = " & ")
+          )
+        )
+      contador <- c(df$combinacoesAzul, df$combinacoesVermelho)
+      contadordf <- as.data.frame(contador)
+      
+      agrupa <- contadordf %>%
+        group_by(contador) %>%
+        summarise(
+          numvez = n()
+        ) %>%
+        arrange(desc(numvez))
+      
+      top5composicoes <- head(agrupa, 5)
+  
+      return(top5composicoes)
+    })
+    
+    Matchs_RedBlue <- reactive({
+      base <- MatchsData()
+      if (input$SeasonMatch == "Todas"){
+        df <- base
+      }else {
+        df <- base %>% filter(season == input$SeasonMatch)
+      }
+      df$blue_winner <- ifelse(df$blue_team == df$winner,1,0)
+      df$red_winner <- ifelse(df$red_team == df$winner,1,0)
+      
+      somawinner <- df %>%
+        group_by(winner) %>%
+        summarise(
+          blueWins = sum(blue_winner),
+          redWins = sum(red_winner),
+          partidas = sum(blue_winner + red_winner)
+        ) %>%
+        arrange(desc(partidas)) %>%
+        head(10)
+      
+      return(somawinner)
+    })
+    
+    observe({
+      choices <- c("Todas", unique(MatchsData()$season))
+      updateSelectInput(session, "SeasonMatch", choices = choices, selected = if (input$SeasonMatch %in% choices) input$SeasonMatch else "Todas")
+    })
+    
+    Matchs_Gauge <- reactive({
+      df <- MatchsData()
+      seasonput <- ifelse(input$SeasonMatch == "Todas",12,as.numeric(input$SeasonMatch))
+      lista_win <- list("Fnatic","Taipei_Assassins","T1","Samsung_White","T1","T1","Samsung_Galaxy","Invictus_Gaming","FunPlus_Phoenix","Dplus_KIA","EDward_Gaming","DRX")
+      equipe_vencedora <- lista_win[[seasonput]]
+      df_filtered <- filter(df, season == seasonput & (blue_team == equipe_vencedora | red_team == equipe_vencedora))
+      return(list(df_filtered = df_filtered, equipe_vencedora = equipe_vencedora))
+    })
+  }
   
   # info boxes
   {
@@ -291,6 +404,43 @@ server <- function(input, output, session) {
         )
     })
     
+    output$Combinacoes <- renderPlotly({
+      df <- Matchs_filtered()
+      top5composicao <- df
+      plot_ly(top5composicao, x = ~contador, y = ~numvez, type = 'bar', marker = list(color = "#BD0000"))%>%
+        layout(title = "Top 5 composições", xaxis = list(title = "Composições"), yaxis = list(title = "Partidas"))
+    })
+    
+    output$RedBlue <- renderPlotly({
+      df <- Matchs_RedBlue()
+      plot_ly(df, x = ~winner, y = ~blueWins, type = 'scatter', mode = 'markers', name = 'Time Azul', marker = list(color = '#214BA0'))%>%
+        add_trace(y = ~redWins, name = 'Time Vermelho', marker = list(color = '#A02121'))%>%
+        layout(title = "Quantidade de jogos ganhados em cada lado", xaxis = list(title = "Times"), yaxis = list(title = "Partidas"))
+    })
+    
+    output$WinnerWinrate <- renderPlotly({
+      result <- Matchs_Gauge()
+      df <- result$df_filtered
+      equipe_vencedora <- result$equipe_vencedora
+      
+      valor <- sum(df$winner == equipe_vencedora) / nrow(df) * 100
+      
+      plot_ly(type = "indicator",
+        title = paste("Winrate do time ganhador da season", equipe_vencedora),
+        mode = "gauge+number",
+        value = valor,
+        gauge = list(
+          axis = list(range = list(0, 100)),
+          bar = list(color = "#F78080"),
+          steps = list(
+            list(range = c(0, 25), color = "#B21111"),
+            list(range = c(25, 50), color = "#C13232"),
+            list(range = c(50, 75), color = "#D45050"),
+            list(range = c(75, 100), color = "#E36262")
+          )
+        )
+      )
+    })
   }
 }
 
