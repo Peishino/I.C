@@ -7,8 +7,8 @@ library(rbmn)
 "
 Comentários Patricia:
 Remover variável : Docentes com superior
-Grafico de dispersão dos pares de variáveis com IDEB
-Categorizar variáveis que não seguem distribuição normal
+Grafico de dispersão dos pares de variáveis com IDEB pra ver correlações
+Categorizar variáveis que não seguem distribuição normal e fazer boxplot do ideb por elas
 "
 
 
@@ -30,7 +30,7 @@ df <- df[,6:12]
 
 # Gráficos de dispersão das variávies em relação ao IDEB
 
-par(mfrow = c(2, 3))
+par(mfrow = c(3, 2))
 for (col in setdiff(names(df), "IDEB")) {
   plot(df[[col]], df$IDEB,
        xlab = col, ylab = "IDEB",
@@ -40,10 +40,13 @@ for (col in setdiff(names(df), "IDEB")) {
 
 # Correlação com ideb
 correlacoes <- cor(df)
+correlacoes
 correlacoes[,"IDEB"]
 
+cortest <- cor.test(df$IDEB, df$Med_Hr_Aula)
+cortest
 
-nao_normais <- c()
+
 for (col in colnames(df)) {
   shapiro_test <- shapiro.test(df[[col]])
   p_value <- shapiro_test$p.value
@@ -51,7 +54,19 @@ for (col in colnames(df)) {
   if (p_value > 0.05) {
     cat(paste("A variável", col, "segue uma distribuição normal (p =", round(p_value, 4), ")\n"))
   } else {
-    nao_normais <- c(col, nao_normais)
+    cat(paste("A variável", col, "não segue uma distribuição normal (p =", round(p_value, 4), ")\n"))
+  }
+}
+
+# kolmogorov-smirnov
+
+for (col in colnames(df)) {
+  ks_test <- ks.test(df[[col]], "pnorm", mean = mean(df[[col]]), sd = sd(df[[col]]))
+  p_value <- ks_test$p.value
+  
+  if (p_value > 0.05) {
+    cat(paste("A variável", col, "segue uma distribuição normal (p =", round(p_value, 4), ")\n"))
+  } else {
     cat(paste("A variável", col, "não segue uma distribuição normal (p =", round(p_value, 4), ")\n"))
   }
 }
@@ -70,35 +85,58 @@ for (col in colnames(df)) {
 
 # A GBN requer que todas as variáveis sigam uma distribuição normal.
 
-nao_normais
 colnames(df)
 
-# Log das variáveis que não seguem distribuição normal
-for (col in nao_normais) {
-  df[[col]] <- log(df[[col]] + 1)
-}
-# Verificar novamente a normalidade após a transformação
-nao_normais2 <- c()
-for (col in nao_normais) {
-  shapiro_test <- shapiro.test(df[[col]])
-  p_value <- shapiro_test$p.value
-  
-  if (p_value > 0.05) {
-    cat(paste(col, "segue uma distribuição normal (p =", round(p_value, 4), ")\n"))
-  } else {
-    nao_normais2 <- c(col, nao_normais2)
-    cat(paste(col, "não segue uma distribuição normal (p =", round(p_value, 4), ")\n"))
-  }
-}
+# Remoção da variável "Docentes com superior"
+df <- df[,-5]
 
-# histogramas
+# Transformar variáveis não normais em categóricas
+summary(df$Med_Hr_Aula)
+par(mfrow = c(1, 1))
+hist(df$Med_Hr_Aula)
+df$Med_Hr_Aula_cat <- cut(df$Med_Hr_Aula,
+                          breaks = c(4,5,10),
+                          labels = c("Até 5", "Acima de 5"))
+min(df$IDEB)
+df$IDEB_cat <- cut(df$IDEB,
+                   breaks = c(0,4.6,5.49,6.5), 
+                   labels = c("Muito abaixo da meta", "Abaixo da meta", "Na meta"))
+summary(df$Med_Alunos_Turma)
+df$Med_alunos_cat <- cut(df$Med_Alunos_Turma,
+                        breaks = c(0,25,40),
+                        labels = c("Até 25", "Acima de 25"))
+                        
+
+df$Distorcao_Idade_cat <- cut(df$Distorcao_Idade,
+                              breaks = c(0,10,100),
+                             labels = c("Até 10%", "Acima de 10%"))
+
+df$re
+
+par(mfrow = c(1, 2))
+?cut
+
+library(Hmisc)
+
+df$Med_Hr_Aula_cat2 <- cut2(df$Med_Hr_Aula, g = 2)
+table(df$Med_Hr_Aula_cat2)
+boxplot(df$IDEB ~ df$Med_Hr_Aula_cat2,
+        col = "lightblue", border = "gray",
+        main = "Boxplot IDEB por categorias de Med_Hr_Aula (cut2)",
+        xlab = "Categorias de Med_Hr_Aula (cut2)", ylab = "IDEB")
+
+df$Baixa_regularidade_Docente_cat <- cut2(df$Baixa_regularidade_Docente, g = 2)
+table(df$Baixa_regularidade_Docente_cat)
+boxplot(df$IDEB ~ df$Baixa_regularidade_Docente_cat,
+        col = "lightblue", border = "gray",
+        main = "Boxplot IDEB por categorias de Baixa_regularidade_Docente (cut2)",
+        xlab = "Categorias de Baixa_regularidade_Docente (cut2)", ylab = "IDEB")
+
+# Categorização de todas as variáveis
 
 
-par(mfrow = c(linhas, cols))  
 
-for (col in colnames(df)) {
-  hist(df[[col]], main = paste("Histograma -", col), xlab = col, col = "lightblue", border = "white")
-}
+
 
 
 # Montar dag
@@ -127,4 +165,8 @@ score(dag2, data = df)
 arcs(dag2)
 
 # BNFit
+
+modelo <- bn.fit(dag_hc, data = df)
+modelo
+
 
