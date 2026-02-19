@@ -64,7 +64,7 @@ modelo <- auto.arima(petr_ts,trace=TRUE) # c(1,1,1)
 modelo
 ?auto.arima
 
-m1 <- Arima(petr_ts, order = c(1,1,1)) 
+m1 <- auto.arima(petr_ts)
 coeftest(m1) # todos os coeficientes são significativos (p-valor < 0.05)
 
 # Análise de Resíduos M1
@@ -107,7 +107,7 @@ previsao <- forecast(melhor_modelo, h = 5, level=c(95))
 plot(previsao, lwd = 2, col="black", xlab= "Tempo", main="Previsão PETR4 (Log-Price)")
 
 #zoom
-plot(previsao, lwd = 2, col="black", xlab= "Tempo", main="Previsão PETR4", xlim=c(4670,4710),ylim=c(28,34))
+plot(previsao, lwd = 2, col="black", xlab= "Tempo", main="Previsão PETR4", xlim=c(4700,4755),ylim=c(28,42))
 lines(dados, col="black", lwd=2)#legenda
 #colocar legenda
 legend("topleft", legend=c("Dados Reais", "Previsão"),
@@ -128,3 +128,4 @@ resultado <- data.frame(
 resultado
 # o modelo está até bom para prever valores de fechamento, mas ainda não explica completamente
 # e eu fiz só pra 5 dias, se eu colocar mais o modelo perde completamente a acurácia
+
